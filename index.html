@@ -1,2 +1,80 @@
-<!DOCTYPE html >
-<p1 Darpan p/1>
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>Egg Farm Army</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,sans-serif;background:#111;touch-action:none;user-select:none}canvas{display:block}
+button{border:0;border-radius:12px;padding:9px 12px;background:#fff;box-shadow:0 4px 12px #0003;font-weight:bold;font-size:13px}button:active{transform:scale(.95)}
+.g{background:#69c34f;color:#fff}.y{background:#f6c43c}.b{background:#4b9ee8;color:#fff}
+#top{position:fixed;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top,0px));display:flex;gap:6px;z-index:10;pointer-events:none}
+.st{flex:1;background:#fffffff0;border-radius:12px;padding:6px 3px;font:bold 12px Arial;text-align:center}
+#hud{position:fixed;left:8px;top:calc(50px + env(safe-area-inset-top,0px));z-index:10;pointer-events:none;font:bold 12px Arial;color:#fff;text-shadow:0 1px 3px #000;line-height:1.5}
+.bar{width:140px;height:10px;background:#0006;border-radius:6px;overflow:hidden;margin:3px 0}.bar i{display:block;height:100%}
+#bt{position:fixed;right:10px;top:calc(50px + env(safe-area-inset-top,0px));z-index:10;display:flex;flex-direction:column;gap:6px}
+#joy{position:fixed;left:18px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:110px;height:110px;border-radius:50%;background:#fff5;border:3px solid #fff9;z-index:10;touch-action:none}
+#knob{position:absolute;left:30px;top:30px;width:44px;height:44px;border-radius:50%;background:#fffd}
+#fire{position:fixed;right:20px;bottom:calc(30px + env(safe-area-inset-bottom,0px));width:90px;height:90px;border-radius:50%;font-size:32px;background:#e5493a;color:#fff;z-index:10;touch-action:none}
+#cross{position:fixed;left:50%;top:50%;width:22px;height:22px;margin:-11px;border:2px solid #fff;border-radius:50%;z-index:10;pointer-events:none;display:none;box-shadow:0 0 4px #000}
+#mk{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(400px,94vw);max-height:82vh;overflow:auto;padding:14px;border-radius:22px;background:#fffffffa;box-shadow:0 20px 60px #0006;z-index:50;display:none}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}.tabs button{flex:1;padding:8px 2px;font-size:11px}
+.si{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;margin:7px 0;border-radius:14px;background:#eef5ea}.si small{display:block;opacity:.65;margin-top:3px}
+#toast{position:fixed;left:50%;top:calc(110px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:#000b;color:#fff;padding:8px 14px;border-radius:20px;font-weight:bold;z-index:60;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+</style></head><body>
+<div id="top"><div class="st">💰 $<span id="mo"></span></div><div class="st">💎 <span id="dia">0</span></div><div class="st" id="stk"></div></div>
+<div id="hud"><div class="bar"><i id="hp" style="background:#e5493a"></i></div><div class="bar"><i id="pw" style="background:#f6c43c;width:0"></i></div><div id="tx"></div></div>
+<div id="bt"><button class="y" id="bMk">🛒 MARKET</button><button class="b" id="bFps">🔫 FPS</button><button id="bGun">🔄 GUN</button><button id="bThr">📦 THROW</button><button id="bPow">⚡ POWER</button><button class="b" id="bView">🔭 VIEW</button></div>
+<div id="joy"><div id="knob"></div></div><button id="fire">💥</button><div id="cross"></div><div id="mk"></div><div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script>
+const $=id=>document.getElementById(id),R=Math.random,PI=Math.PI,H=Math.hypot,V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const A=Object.assign({money:600,ships:0,trucks:0,gun:0,arm:1,pow:1,swim:1,farmers:0,wave:1,q:[],n:{cow:2,sheep:2,pig:2,chicken:3},bl:{milk:0,wool:0,meat:0,egg:0},farm:{milk:0,wool:0,meat:0,egg:0},port:{milk:0,wool:0,meat:0,egg:0,loot:0},guns:{0:1},army:{rifle:0,gunner:0,sniper:0,heavy:0},carry:{loot:0,meat:0}},JSON.parse(localStorage.getItem('eggArmy1')||'{}'));
+const save=()=>{try{localStorage.setItem('eggArmy1',JSON.stringify(A))}catch(e){}};
+A.imp=Object.assign({steel:0,circuit:0,powder:0},A.imp);A.mat=Object.assign({dirt:0,stone:0},A.mat);A.res=A.res||{};A.hse=A.hse||1;A.wallLvl=A.wallLvl||1;A.aw=A.aw||0;A.t=A.t??.1;for(const o of['bl','farm','port'])A[o].wood=A[o].wood||0;A.n.lumberjack=A.n.lumberjack||1;A.army.archer=A.army.archer||0;
+let tt0;function toast(m){const t=$('toast');t.textContent=m;t.style.opacity=1;clearTimeout(tt0);tt0=setTimeout(()=>t.style.opacity=0,1800)}
+const renderer=new THREE.WebGLRenderer({antialias:devicePixelRatio<2,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.shadowMap.enabled=true;renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.appendChild(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x9fd4f5);scene.fog=new THREE.Fog(0xcfe6f2,80,190);
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,400);scene.add(camera);camera.rotation.order='YXZ';
+const hemi=new THREE.HemisphereLight(0xcfe8ff,0x5a6b45,1.2);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff1d6,2.4);sun.position.set(-25,40,25);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-60,right:60,top:60,bottom:-60,near:1,far:140});scene.add(sun);
+function tex(base,fn,rep){const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');x.fillStyle=base;x.fillRect(0,0,256,256);fn(x,256);for(let i=0;i<5000;i++){x.fillStyle=`rgba(${R()>.5?255:0},${R()>.5?255:0},${R()>.5?255:0},.04)`;x.fillRect(R()*256,R()*256,2,2)}const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rep,rep);t.colorSpace=THREE.SRGBColorSpace;return t}
+const mc={},mat=(c,r=.8,m=0)=>mc[c+'_'+r+'_'+m]||(mc[c+'_'+r+'_'+m]=new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m})),fm=t=>new THREE.MeshStandardMaterial({map:t,roughness:.8});
+const put=(g,geo,m,x=0,y=0,z=0,sx=1,sy=1,sz=1)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.castShadow=true;g.add(o);return o};
+const gc={},SP=(r,w=20,h=14)=>gc['s'+r+'_'+w+'_'+h]||(gc['s'+r+'_'+w+'_'+h]=new THREE.SphereGeometry(r,w,h)),CP=(r,l)=>gc['c'+r+'_'+l]||(gc['c'+r+'_'+l]=new THREE.CapsuleGeometry(r,l,6,12));
+const box=(w,h,d,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;scene.add(o);return o};
+const grassT=tex('#5b9447',(x,s)=>{for(let i=0;i<2500;i++){x.strokeStyle=['#4a8038','#6aa653','#3f7332'][i%3];const a=R()*s,b=R()*s;x.beginPath();x.moveTo(a,b);x.lineTo(a+(R()-.5)*5,b-3-R()*6);x.stroke()}},60);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),fm(grassT));ground.rotation.x=-PI/2;ground.receiveShadow=true;scene.add(ground);
+const wood=mat(0x9a6538,.8),brown=mat(0x6b4423,.9),metal=mat(0x9aa2a8,.35,.7),red=mat(0xc9362d,.5);
+/* sea + pier */
+const wt=tex('#1f6fb0',(x,s)=>{x.strokeStyle='#6bb8ee';x.lineWidth=2;for(let i=0;i<70;i++){x.beginPath();const y=R()*s,xx=R()*s;x.moveTo(xx,y);x.bezierCurveTo(xx+20,y-6,xx+40,y+6,xx+60,y);x.stroke()}},50);
+const sea=new THREE.Mesh(new THREE.PlaneGeometry(700,360),new THREE.MeshStandardMaterial({map:wt,roughness:.12,metalness:.25,color:0xbfe0ff}));sea.rotation.x=-PI/2;sea.position.set(0,.15,-228);scene.add(sea);
+box(90,.5,10,wood,0,.3,-43);for(let x=-40;x<=40;x+=6)for(const z of[-47.5,-38.5]){const p=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,2,8),brown);p.position.set(x,0,z);scene.add(p)}
+for(const x of[-30,30]){box(1,12,1,mat(0xe4b52e),x,6,-40);box(1,1,10,mat(0xe4b52e),x,12,-43)}
+/* trees */
+(()=>{const sp=[];while(sp.length<180){const x=(R()-.5)*260,z=-44+R()*170;if(!(Math.abs(x)<62&&z<52))sp.push([x,z])}for(const [cx,cz] of[[48,-10],[-50,-8],[46,-28]])for(let i=0;i<22;i++)sp.push([cx+(R()-.5)*14,cz+(R()-.5)*14]);
+const n=sp.length,tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.35,.55,3.2,7),mat(0x5a3a22),n),c1=new THREE.InstancedMesh(new THREE.ConeGeometry(2.4,4.6,9),mat(0xffffff),n),c2=new THREE.InstancedMesh(new THREE.ConeGeometry(1.7,3.6,9),mat(0xffffff),n),d=new THREE.Object3D(),col=new THREE.Color();
+sp.forEach(([x,z],i)=>{const s=.8+R()*.9;d.rotation.y=R()*6;d.scale.setScalar(s);d.position.set(x,1.6*s,z);d.updateMatrix();tr.setMatrixAt(i,d.matrix);d.position.y=5.3*s;d.updateMatrix();c1.setMatrixAt(i,d.matrix);d.position.y=7*s;d.updateMatrix();c2.setMatrixAt(i,d.matrix);col.setHSL(.27+R()*.06,.5,.2+R()*.1);c1.setColorAt(i,col);c2.setColorAt(i,col)});
+tr.castShadow=c1.castShadow=c2.castShadow=true;scene.add(tr,c1,c2)})();
+/* barracks */
+box(10,3,6,mat(0x55633f),16,1.5,-22);box(10.6,.4,6.6,mat(0x3a4a2a),16,3.2,-22);
+/* animals */
+const cowT=tex('#f3f0e8',(x,s)=>{x.fillStyle='#262220';for(let i=0;i<16;i++){x.beginPath();x.ellipse(R()*s,R()*s,14+R()*26,10+R()*20,R()*6,0,6.3);x.fill()}},1),shT=tex('#f2efe6',(x,s)=>{x.strokeStyle='#d6d1c0';x.lineWidth=3;for(let i=0;i<500;i++){x.beginPath();x.arc(R()*s,R()*s,3+R()*5,0,5);x.stroke()}},2),pgT=tex('#f0a8b0',(x,s)=>{x.fillStyle='#e594a0';for(let i=0;i<30;i++){x.beginPath();x.arc(R()*s,R()*s,6+R()*12,0,6.3);x.fill()}},1);
+function animal(k){if(k==='lumberjack')return biped(0xc98258,mat(0x8a2a2a),mat(0x3a3a4a),0,0x2a1a0e);const g=new THREE.Group(),E=mat(0x101010,.2);
+if(k==='cow'){const c=fm(cowT),pk=mat(0xe9a0a8,.7);put(g,SP(.6,28,20),c,0,1.1,0,.95,.95,1.55);put(g,SP(.38,22,16),c,0,1.4,1.15,.9,.95,1.1);put(g,SP(.24,16,12),pk,0,1.25,1.5,1.1,.8,1);
+for(const s of[-1,1]){put(g,SP(.06,8,8),E,s*.2,1.5,1.45);put(g,SP(.14,10,8),c,s*.4,1.55,1.05,1.6,.5,.8);put(g,new THREE.ConeGeometry(.06,.3,8),mat(0xf0e8d0),s*.2,1.82,1.1);for(const z of[-.7,.7])put(g,CP(.11,.55),c,s*.34,.45,z)}put(g,SP(.2,12,10),pk,0,.6,-.35,1,.8,1)}
+else if(k==='sheep'){const w=fm(shT),dk=mat(0x2b2623);put(g,new THREE.IcosahedronGeometry(.62,3),w,0,1,0,1.05,.95,1.45);put(g,SP(.27,18,14),dk,0,1.15,1,.9,1,1.2);put(g,SP(.22,14,10),w,0,1.45,.85);for(const s of[-1,1]){put(g,SP(.08,8,8),dk,s*.3,1.2,1,1.8,.5,.8);for(const z of[-.5,.5])put(g,CP(.06,.5),dk,s*.28,.35,z)}}
+else if(k==='pig'){const p=fm(pgT),dk=mat(0xd98a94);put(g,CP(.44,.7),p,0,.75,0).rotation.x=PI/2;put(g,SP(.36,20,14),p,0,.85,.85);put(g,new THREE.CylinderGeometry(.16,.18,.16,14),dk,0,.78,1.2).rotation.x=PI/2;for(const s of[-1,1]){put(g,new THREE.ConeGeometry(.12,.25,6),p,s*.22,1.2,.8);put(g,SP(.05,8,8),E,s*.15,1,1.13);for(const z of[-.5,.5])put(g,CP(.09,.3),p,s*.26,.25,z)}}
+else{const w=mat(0xf5f1e6,.9);put(g,SP(.4,16,12),w,0,.6,0,1,.9,1.2);put(g,SP(.2,12,10),w,0,1,.45);put(g,new THREE.ConeGeometry(.07,.2,6),mat(0xf0a424),0,1,.68).rotation.x=PI/2;put(g,SP(.07,8,8),red,0,1.2,.45,1,1.3,.7);for(const s of[-1,1])put(g,CP(.03,.3),mat(0xdca23a),s*.15,.2,0)}
+return g}
+const FM={milk:['cow',-36,12],wool:['sheep',36,12],meat:['pig',0,32],egg:['chicken',-24,-14],wood:['lumberjack',44,-12]},PX={milk:-26,wool:26,meat:0,egg:-13,wood:13},PV={milk:14,wool:20,meat:28,egg:6,wood:10,loot:18},animals=[],pens={};
+function ring(x,z,w,d){box(w,.9,.2,brown,x,.5,z-d/2);box(w,.9,.2,brown,x,.5,z+d/2);box(.2,.9,d,brown,x-w/2,.5,z);box(.2,.9,d,brown,x+w/2,.5,z)}
+for(const p in FM){const [k,x,z]=FM[p];ring(x,z,14,10);const m=new THREE.Mesh(new THREE.PlaneGeometry(14,10),mat(k==='pig'?0x6b4a2c:0x7bbf5a,1));m.rotation.x=-PI/2;m.position.set(x,.06,z);scene.add(m);pens[k]=[]}
+function addAnimal(k){const p=Object.values(FM).find(f=>f[0]===k),g=animal(k);g.position.set(p[1],0,p[2]);scene.add(g);animals.push({g,x:p[1],z:p[2],r:2+R()*2,s:.25+R()*.2,ph:R()*6})}
+for(const k in A.n)for(let i=0;i<A.n[k];i++)addAnimal(k);
+/* belts */
+const beltItems=[];function addBelt(p,i){const F=FM[p],x=F[1]-5+(i%3)*4.4,z=F[2]+7+Math.floor(i/3)*2.2;box(4,.5,1.4,metal,x,.5,z);box(3.8,.1,1.1,mat(0x1c1d1f),x,.8,z);const c=p==='milk'?0xffffff:p==='wool'?0xf0e8d0:p==='egg'?0xf6e6c4:0xd0505a;for(let k=0;k<3;k++){const m=new THREE.Mesh(new THREE.BoxGeometry(.5,.45,.5),mat(c,.5));scene.add(m);beltItems.push({m,x,z,ph:k/3})}}
+for(const p in A.bl)for(let i=0;i<A.bl[p];i++)addBelt(p,i);
+/* trucks & ships */
+const truckM=new THREE.Group();{put(truckM,new THREE.BoxGeometry(5,1.2,2.4),red,0,1.1,0);put(truckM,new THREE.BoxGeometry(1.8,1.7,2.2),mat(0xe34a3f,.4),1.55,1.85,0);put(truckM,new THREE.BoxGeometry(.08,.9,1.8),mat(0x6fb6dc,.1),2.46,2,0);for(const x of[-1.5,1.6])for(const z of[-1.25,1.25])put(truckM,new THREE.CylinderGeometry(.55,.55,.35,16),mat(0x1a1a1a),x,.55,z).rotation.x=PI/2}
+const trucks=[],ships=[],KEYS=['milk','wool','meat','egg','wood'];
+function addTruck(i){const t=KEYS[i%5],f=FM[t],g=truckM.clone(true),home=V(f[1]+9,0,f[2]+6+(i/5|0)*3.5);g.position.copy(home);scene.add(g);trucks.push({g,t,st:0,wp:[],k:0,c:0,home,i})}
+function shipModel(){const g=new THREE.Group(),hm=mat(0x28406a,.5);put(g,new THREE.BoxGeometry(9,1.6,3),hm,0,.8,0);put(g,new THREE.ConeGeometry(1.7,2.5,4),hm,5.6,.8,0).rotation.set(PI/4,0,-PI/2);put(g,new THREE.BoxGeometry(2.5,2,2.4),mat(0xf0f0f0,.5),-2.5,2.6,0);put(g,new THREE.CylinderGeometry(.35,.35,1.2,10),red,-2.5,4.2,0);
+g.userData.c=[0xdd3333,0x3399cc,0xeebb33,0x44aa55,0xdd7733,0x8855cc].map((c,i)=>put(g,new THREE.BoxGeometry(1.7,1.1,1.3),mat(c,.6),.8+(i%3)*1.8,1.7+(i/3|0)*1.1,0));return g}
+const cont=s=>s.g.userData.c.forEach((m,i)=>m.visible=i<Math.min(6,Math.ceil(s.units/7)));
+function addShip(i){const g=shipModel();g.rotation.y=PI/2;g.position.set(-36+i*18,.25,-53);scene.add(g);const s={g,i,st:0,t:0,units:0,val:0};ships.push(s);cont(s)}
